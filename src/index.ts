@@ -1,29 +1,44 @@
-import { filterPossibleBrews, filterPossibleCasts } from './gameAILogic';
-import { parseInventoryAndScore, parseOrder } from './input';
-import { random } from './random';
+import { filterPossibleBrews, filterPossibleLearns, getBestCast, getBestCastV2 } from './gameAILogic';
+import { parseInventoryAndScore, parseActions } from './input';
 
+// let currentTurn = 0;
 // game loop
 while (true) {
-  const actionCount: number = parseInt(readline()); // the number of spells and recipes in play
+  const actionCount: number = parseInt(readline());
   let turnActions = [];
   for (let i = 0; i < actionCount; i++) {
-    turnActions.push(parseOrder());
+    turnActions.push(parseActions());
   }
-  const { inventory: myInventory, score: myScore } = parseInventoryAndScore();
+  const { inventory: myInventory } = parseInventoryAndScore();
   const { inventory: eInventory, score: eScore } = parseInventoryAndScore();
-  // console.error(turnActions.map(action => JSON.stringify(action)).join(', \n'));
+
+  const possibleLearns = filterPossibleLearns(turnActions, myInventory);
   const possibleBrew = filterPossibleBrews(turnActions, myInventory);
-  const possibleCast = filterPossibleCasts(turnActions, myInventory);
+
+  if (possibleLearns.length > 0) {
+    const learnValues = possibleLearns.map(learn => ({
+      learn,
+      value: learn.ingredients.reduce((a, b) => a + b) - learn.tomeIndex,
+    }));
+    learnValues.sort((a, b) => b.value - a.value);
+    if (learnValues[0].value >= 0) {
+      console.log(`LEARN ${learnValues[0].learn.id}`);
+      continue;
+    }
+  }
 
   if (possibleBrew.length > 0) {
     console.log(`BREW ${possibleBrew[0].id}`);
-  } else if (possibleCast.length > 0) {
-    const randomIndex = Math.ceil(random() * (possibleCast.length - 1));
-    console.log(`CAST ${possibleCast[randomIndex].id}`);
-  } else {
-    console.log('REST');
+    continue;
   }
-  // Write an action using console.log()
-  // To debug: console.error('Debug messages...');
-  // in the first league: BREW <id> | WAIT; later: BREW <id> | CAST <id> [<times>] | LEARN <id> | REST | WAIT
+
+  const bestCast = getBestCast(turnActions, myInventory);
+  const bestCastV2 = getBestCastV2(turnActions, myInventory, 2);
+
+  if (bestCast) {
+    console.log(`CAST ${bestCast.id}`);
+    continue;
+  }
+  console.error('################REST##################');
+  console.log('REST');
 }
